@@ -194,3 +194,4 @@ dkms.conf
 .clang-format
 
 cmock
+.gdb_history

@@ -33,7 +33,7 @@ int main(int argc, char *argv[]) {
   dns_value = argv[1];
 
   //
-  /* PREPARE CONNECTION DATA */
+  /* PREPARE FOR ADDRESSES DATA RETRIVAL */
   result = memset(&hints, 0, sizeof(hints));
 
   if (!result) {
@@ -46,7 +46,7 @@ int main(int argc, char *argv[]) {
   hints.ai_flags = AI_PASSIVE;     // find IP for me
 
   //
-  /* GET CONNECTION DATA */
+  /* GET ADDRESSES DATA */
   status = getaddrinfo(
       // IP or DNS
       dns_value,
@@ -63,7 +63,7 @@ int main(int argc, char *argv[]) {
   }
 
   //
-  /* SHOW CONNECTION DATA */
+  /* SHOW ADDRESSES DATA */
   servinfo_cp = servinfo;
   while (servinfo) {
 
@@ -84,7 +84,7 @@ int main(int argc, char *argv[]) {
       return 4;
     }
 
-    printf("The IPv4 address is: %s\n", ip);
+    printf("%s\n", ip);
 
     servinfo = servinfo->ai_next;
   }
