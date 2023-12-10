@@ -92,3 +92,16 @@ struct sockaddr_in6 sa6; // IPv6
 inet_pton(AF_INET, "10.12.110.57", &(sa.sin_addr)); // IPv4
 inet_pton(AF_INET6, "2001:db8:63b3:1::3490", &(sa6.sin6_addr)); // IPv6
 ```
+
+or in the other way
+
+```
+// IPv4:
+char ip4[INET_ADDRSTRLEN];// space to hold the IPv4
+
+struct sockaddr_in sa;// pretend this is loaded with string something
+
+inet_ntop(AF_INET, &(sa.sin_addr), ip4, INET_ADDRSTRLEN);
+
+printf("The IPv4 address is: %s\n", ip4);
+```
