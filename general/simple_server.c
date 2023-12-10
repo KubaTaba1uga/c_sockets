@@ -13,6 +13,7 @@
 
 static struct addrinfo *create_address_info(void);
 int process_requests(int socket_descriptor);
+int fibbonnaci(int n);
 
 int main(void) {
   /* ALLOCATE RESOURCES  */
@@ -85,34 +86,45 @@ struct addrinfo *create_address_info(void) {
 }
 
 int process_requests(int socket_descriptor) {
+  struct sockaddr_storage clientinfo;
+  socklen_t client_size;
+  int client_sd;
+  int err;
+
+  client_size = sizeof(clientinfo);
+  err = accept(socket_descriptor, (struct sockaddr *)&clientinfo, &client_size);
+  if (err == -1) {
+    fputs("Accepting new connection failed", stderr);
+    return 1;
+  }
+
+  client_sd = err;
+
   while (1) {
-    struct sockaddr_storage clientinfo;
-    socklen_t client_size;
     char buffer[255];
 
-    int client_sd;
-    int err;
-
-    client_size = sizeof(clientinfo);
-    err =
-        accept(socket_descriptor, (struct sockaddr *)&clientinfo, &client_size);
-
-    if (err == -1) {
-      fputs("Accepting new connection failed", stderr);
-      return 1;
-    }
-
-    client_sd = err;
-
     err = recv(client_sd, &buffer, sizeof(buffer) - 1, 0);
+
     if (err == -1) {
       fputs("Reciving data failed", stderr);
       perror("recv");
       return 2;
+    } else if (err == 0) {
+      // Client disconnected
+      break;
     }
 
-    printf("Received: %s\n", buffer);
+    printf("Received: %s", buffer);
   }
 
   return 0;
+}
+
+int _fibbonnaci(int n) {
+
+  if (n <= 1) {
+    return n;
+  }
+
+  return fibbonnaci(n - 2) + fibbonnaci(n - 1);
 }
