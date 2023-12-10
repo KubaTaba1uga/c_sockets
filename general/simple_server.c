@@ -94,13 +94,15 @@ int process_requests(int socket_descriptor) {
     int err;
 
     client_size = sizeof(clientinfo);
-    client_sd =
+    err =
         accept(socket_descriptor, (struct sockaddr *)&clientinfo, &client_size);
 
-    if (client_sd == -1) {
+    if (err == -1) {
       fputs("Accepting new connection failed", stderr);
       return 1;
     }
+
+    client_sd = err;
 
     err = recv(client_sd, &buffer, sizeof(buffer) - 1, 0);
     if (err == -1) {
