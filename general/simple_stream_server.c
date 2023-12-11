@@ -1,3 +1,6 @@
+/* `send` and `recv` are used for stream communication. */
+/* If You are interested in datagram communication check out  */
+/* `sendto` and `recvfrom`. */
 #include <arpa/inet.h>
 #include <ctype.h>
 #include <netdb.h>
