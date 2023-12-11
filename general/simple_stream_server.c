@@ -107,7 +107,7 @@ int process_requests(int socket_descriptor) {
   socklen_t client_size;
   int client_sd, fib;
   char *n;
-  int err;
+  int err, bytes_amount, buffer_len;
 
   client_size = sizeof(clientinfo);
 
@@ -162,15 +162,25 @@ int process_requests(int socket_descriptor) {
       /* SEND DATA */
       sprintf(buffer, "%i\n", fib);
 
-      err = send(client_sd, buffer, strlen(buffer) * sizeof(char), 0);
-      if (err == -1) {
-        fputs("Sending data failed", stderr);
-        perror("send");
-        return 2;
+      n = buffer;
+      while (1) {
+        /*  send() returns the number of bytes actually sent out, this might be
+           less than the number you told it to send! If the value returned by
+           send() doesn’t match the value in len, it’s up to you to send the
+           rest of the string.
+        */
+        buffer_len = strlen(n);
+        bytes_amount = send(client_sd, n, buffer_len, 0);
+        if (bytes_amount == -1) {
+          fputs("Sending data failed", stderr);
+          perror("send");
+          return 2;
+        }
 
-      } else if (err == 0) {
-        fputs("Client discconected\n", stderr);
-        break;
+        if (buffer_len == bytes_amount)
+          break;
+
+        n = n + bytes_amount;
       }
     }
 
