@@ -1,4 +1,5 @@
 #include <arpa/inet.h>
+#include <ctype.h>
 #include <netdb.h>
 #include <netinet/in.h>
 #include <stddef.h>
@@ -7,13 +8,14 @@
 #include <string.h>
 #include <sys/socket.h>
 #include <sys/types.h>
+#include <unistd.h>
 
 #define PORT "8080"
 #define CONNECTIONS_LIMIT 5
 
 static struct addrinfo *create_address_info(void);
 int process_requests(int socket_descriptor);
-int fibbonnaci(int n);
+int fibbonnaci(char *n);
 
 int main(void) {
   /* ALLOCATE RESOURCES  */
@@ -37,6 +39,15 @@ int main(void) {
     return 2;
   }
 
+  // Get rid of `Binding socket descriptor to port failed` msg.
+  err = 1;
+  setsockopt(sd, SOL_SOCKET, SO_REUSEADDR, &err, sizeof(err));
+  if (err == -1) {
+    fputs("Creating socket descriptor failed", stderr);
+    perror("setsockopt");
+    return 3;
+  }
+
   /* BIND SOCKET DESCRIPTOR TO PORT */
   // The port number is used by the kernel to match an incoming
   //  packet to a certain process’s socket descriptor.
@@ -44,12 +55,14 @@ int main(void) {
 
   if (err == -1) {
     fputs("Binding socket descriptor to port failed", stderr);
-    return 3;
+    return 4;
   }
 
   err = listen(sd, CONNECTIONS_LIMIT);
 
   process_requests(sd);
+
+  close(sd);
 
   return 0;
 }
@@ -86,45 +99,116 @@ struct addrinfo *create_address_info(void) {
 }
 
 int process_requests(int socket_descriptor) {
+  /* ALLOCATE RESOURCES  */
   struct sockaddr_storage clientinfo;
   socklen_t client_size;
-  int client_sd;
+  int client_sd, fib;
+  char *n;
   int err;
 
   client_size = sizeof(clientinfo);
-  err = accept(socket_descriptor, (struct sockaddr *)&clientinfo, &client_size);
-  if (err == -1) {
-    fputs("Accepting new connection failed", stderr);
-    return 1;
-  }
 
-  client_sd = err;
-
+  //
+  /* PROCESS NEW CONNECTION */
   while (1) {
-    char buffer[255];
+    puts("Waiting for connection...");
 
-    err = recv(client_sd, &buffer, sizeof(buffer) - 1, 0);
+    err =
+        accept(socket_descriptor, (struct sockaddr *)&clientinfo, &client_size);
 
     if (err == -1) {
-      fputs("Reciving data failed", stderr);
-      perror("recv");
-      return 2;
-    } else if (err == 0) {
-      // Client disconnected
-      break;
+      fputs("Accepting new connection failed", stderr);
+      return 1;
     }
 
-    printf("Received: %s", buffer);
+    client_sd = err;
+
+    //
+    /* RECIVE AND SEND DATA VIA CONNECTION */
+    while (1) {
+      char buffer[255];
+
+      //
+      /* RECIVE DATA */
+      err = recv(client_sd, &buffer, sizeof(buffer) - 1, 0);
+
+      if (err == -1) {
+        fputs("Reciving data failed", stderr);
+        perror("recv");
+        return 2;
+
+      } else if (err == 0) {
+        fputs("Client discconected\n", stderr);
+        break;
+      }
+
+      //
+      /* CALCULATE N'th FIBBONNACI NUMBER */
+      n = strdup(buffer);
+
+      fib = fibbonnaci(buffer);
+
+      free(n);
+
+      if (fib == -1) {
+        fputs("Counting fibbonnaci failed", stderr);
+        return 3;
+      }
+
+      //
+      /* SEND DATA */
+      sprintf(buffer, "%i\n", fib);
+
+      err = send(client_sd, buffer, strlen(buffer) * sizeof(char), 0);
+      if (err == -1) {
+        fputs("Sending data failed", stderr);
+        perror("send");
+        return 2;
+
+      } else if (err == 0) {
+        fputs("Client discconected\n", stderr);
+        break;
+      }
+    }
+
+    close(client_sd);
   }
 
   return 0;
 }
 
 int _fibbonnaci(int n) {
-
   if (n <= 1) {
     return n;
   }
 
-  return fibbonnaci(n - 2) + fibbonnaci(n - 1);
+  return _fibbonnaci(n - 2) + _fibbonnaci(n - 1);
+}
+
+char *sanitize(char *s) {
+  char *org = s;
+
+  while (*s) {
+    if (isspace(*s))
+      *s = *(s + 1);
+
+    s++;
+  }
+
+  return org;
+}
+
+int fibbonnaci(char *n) {
+  int result;
+  int n_i;
+
+  n = sanitize(n);
+
+  n_i = atoi(n);
+
+  if (n_i == 0) {
+    return -1;
+  }
+
+  return _fibbonnaci(n_i);
 }
