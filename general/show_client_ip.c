@@ -139,8 +139,7 @@ int process_requests(int socket_descriptor) {
       if (err == -1) {
         fputs("Reciving data failed", stderr);
         perror("recv");
-        return 2;
-
+        break;
       } else if (err == 0) {
         fputs("Client discconected\n", stderr);
         break;
@@ -153,7 +152,7 @@ int process_requests(int socket_descriptor) {
 
       if (fib == -1) {
         fputs("Getting client ip failed", stderr);
-        return 3;
+        break;
       }
 
       //

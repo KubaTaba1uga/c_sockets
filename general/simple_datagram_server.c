@@ -1,6 +1,4 @@
-/* `send` and `recv` are used for stream communication. */
-/* If You are interested in datagram communication check out  */
-/* `sendto` and `recvfrom`. */
+/* `sendto` and `recvfrom` are used for datagram communication. */
 #include <arpa/inet.h>
 #include <ctype.h>
 #include <netdb.h>
@@ -61,15 +59,12 @@ int main(void) {
     return 4;
   }
 
-  err = listen(sd, CONNECTIONS_LIMIT);
-
   process_requests(sd);
 
   close(sd);
 
   return 0;
 }
-
 struct addrinfo *create_address_info(void) {
   /* ALLOCATE RESOURCES  */
   struct addrinfo hints;
@@ -86,8 +81,9 @@ struct addrinfo *create_address_info(void) {
     return NULL;
   }
 
-  hints.ai_socktype = SOCK_STREAM; // TCP
-  hints.ai_flags = AI_PASSIVE;     // bind to localhost
+  hints.ai_family = AF_INET;
+  hints.ai_socktype = SOCK_DGRAM; // UDP
+  hints.ai_flags = AI_PASSIVE;    // bind to localhost
 
   //
   /* GET ADDRESSES DATA */
@@ -101,90 +97,76 @@ struct addrinfo *create_address_info(void) {
   return servinfo;
 }
 
-int process_requests(int socket_descriptor) {
-  /* ALLOCATE RESOURCES  */
-  struct sockaddr_storage clientinfo;
-  socklen_t client_size;
-  int client_sd, fib;
+int process_requests(int socket_descriptor) { /* ALLOCATE RESOURCES  */
+
+  const size_t buffer_size = 255;
+  char buffer[buffer_size];
+  struct sockaddr_in client_address; // IPv4
   char *n;
-  int err, bytes_amount, buffer_len;
+  int err, fib;
+  int client_size;
 
-  client_size = sizeof(clientinfo);
+  /* client_address.sin_family = AF_INET; */
+  /* client_address.sin_port = htons(atoi(PORT)); */
 
-  //
-  /* PROCESS NEW CONNECTION */
   while (1) {
-    puts("Waiting for connection...");
+    client_size = sizeof(client_address);
 
-    err =
-        accept(socket_descriptor, (struct sockaddr *)&clientinfo, &client_size);
+    err = recvfrom(socket_descriptor, buffer, buffer_size, 0,
+                   (struct sockaddr *)&client_address, &client_size);
 
     if (err == -1) {
-      fputs("Accepting new connection failed", stderr);
-      return 1;
+      fputs("Reciving data failed", stderr);
+      perror("recvfrom");
+      return -1;
     }
 
-    client_sd = err;
+    printf("Recfrom: %i\n", err);
+
+    /* puts(buffer); */
+
+    /* err = inet_pton(AF_INET, */
+    /*                 // STRING */
+    /*                 buffer, */
+    /*                 // RESULT PLACEHOLDER */
+    /*                 &(client_address.sin_addr)); // IPv4 */
+
+    /* if (err == -1) { */
+    /*   fputs("Convertion from str to sockaddr_in failed\n", stderr); */
+    /*   perror("inet_pton"); */
+    /*   return 1; */
+    /* } */
 
     //
-    /* RECIVE AND SEND DATA VIA CONNECTION */
-    while (1) {
-      char buffer[255];
+    /* CALCULATE N'th FIBBONNACI NUMBER */
+    n = strdup(buffer);
 
-      //
-      /* RECIVE DATA */
-      err = recv(client_sd, &buffer, sizeof(buffer) - 1, 0);
+    fib = fibbonnaci(buffer);
 
-      if (err == -1) {
-        fputs("Reciving data failed", stderr);
-        perror("recv");
-        return 2;
+    free(n);
 
-      } else if (err == 0) {
-        fputs("Client discconected\n", stderr);
-        break;
-      }
+    sprintf(buffer, "%i\n", fib);
 
-      //
-      /* CALCULATE N'th FIBBONNACI NUMBER */
-      n = strdup(buffer);
+    puts(buffer);
 
-      fib = fibbonnaci(buffer);
+    if (fib == -1) {
+      fputs("Counting fibbonnaci failed", stderr);
+      return 3;
+    }
+    n = buffer;
 
-      free(n);
+    err = sendto(socket_descriptor, (const char *)n, strlen(n), 0,
+                 (const struct sockaddr *)&client_address, client_size);
 
-      if (fib == -1) {
-        fputs("Counting fibbonnaci failed", stderr);
-        return 3;
-      }
-
-      sprintf(buffer, "%i\n", fib);
-
-      //
-      /* SEND DATA */
-      n = buffer;
-      while (1) {
-        /*  send() returns the number of bytes actually sent out, this might be
-           less than the number you told it to send! If the value returned by
-           send() doesn’t match the value in len, it’s up to you to send the
-           rest of the string.
-        */
-        buffer_len = strlen(n);
-        bytes_amount = send(client_sd, n, buffer_len, 0);
-        if (bytes_amount == -1) {
-          fputs("Sending data failed", stderr);
-          perror("send");
-          return 2;
-        }
-
-        if (buffer_len == bytes_amount)
-          break;
-
-        n = n + bytes_amount;
-      }
+    if (err == -1) {
+      fputs("Sending data failed\n", stderr);
+      perror("sendto");
+      return 2;
     }
 
-    close(client_sd);
+    printf("Sendto: %i\n", err);
+
+    puts(buffer);
   }
 
   return 0;
