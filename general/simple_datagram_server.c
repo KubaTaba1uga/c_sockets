@@ -36,7 +36,7 @@ int main(void) {
       socket(servinfo->ai_family, servinfo->ai_socktype, servinfo->ai_protocol);
 
   if (sd == -1) {
-    fputs("Creating socket descriptor failed", stderr);
+    fputs("Creating socket descriptor failed\n", stderr);
     return 2;
   }
 
@@ -44,7 +44,7 @@ int main(void) {
   err = 1;
   setsockopt(sd, SOL_SOCKET, SO_REUSEADDR, &err, sizeof(err));
   if (err == -1) {
-    fputs("Creating socket descriptor failed", stderr);
+    fputs("Creating socket descriptor failed\n", stderr);
     perror("setsockopt");
     return 3;
   }
@@ -55,7 +55,7 @@ int main(void) {
   err = bind(sd, servinfo->ai_addr, servinfo->ai_addrlen);
 
   if (err == -1) {
-    fputs("Binding socket descriptor to port failed", stderr);
+    fputs("Binding socket descriptor to port failed\n", stderr);
     return 4;
   }
 
@@ -77,7 +77,7 @@ struct addrinfo *create_address_info(void) {
   result = memset(&hints, 0, sizeof(hints));
 
   if (!result) {
-    fputs("Creating addrinfo failed", stderr);
+    fputs("Creating addrinfo failed\n", stderr);
     return NULL;
   }
 
@@ -98,63 +98,51 @@ struct addrinfo *create_address_info(void) {
 }
 
 int process_requests(int socket_descriptor) { /* ALLOCATE RESOURCES  */
-
   const size_t buffer_size = 255;
   char buffer[buffer_size];
   struct sockaddr_in client_address; // IPv4
   char *n;
   int err, fib;
-  int client_size;
-
-  /* client_address.sin_family = AF_INET; */
-  /* client_address.sin_port = htons(atoi(PORT)); */
+  socklen_t client_size;
 
   while (1) {
+    // Cleanup after previous request
+    memset(buffer, 0, buffer_size - 1);
+
     client_size = sizeof(client_address);
 
+    //
+    /* RECIVE DATA */
     err = recvfrom(socket_descriptor, buffer, buffer_size, 0,
                    (struct sockaddr *)&client_address, &client_size);
 
     if (err == -1) {
-      fputs("Reciving data failed", stderr);
+      fputs("Reciving data failed\n", stderr);
       perror("recvfrom");
-      return -1;
+      return 1;
+    } else if (err == 0) {
+      break;
     }
-
-    printf("Recfrom: %i\n", err);
-
-    /* puts(buffer); */
-
-    /* err = inet_pton(AF_INET, */
-    /*                 // STRING */
-    /*                 buffer, */
-    /*                 // RESULT PLACEHOLDER */
-    /*                 &(client_address.sin_addr)); // IPv4 */
-
-    /* if (err == -1) { */
-    /*   fputs("Convertion from str to sockaddr_in failed\n", stderr); */
-    /*   perror("inet_pton"); */
-    /*   return 1; */
-    /* } */
 
     //
     /* CALCULATE N'th FIBBONNACI NUMBER */
     n = strdup(buffer);
 
-    fib = fibbonnaci(buffer);
+    fib = fibbonnaci(n);
 
     free(n);
 
     sprintf(buffer, "%i\n", fib);
 
-    puts(buffer);
-
     if (fib == -1) {
-      fputs("Counting fibbonnaci failed", stderr);
-      return 3;
+      fputs("Counting fibbonnaci failed\n", stderr);
+      n = "Invalid input\n";
+    } else {
+      n = buffer;
     }
-    n = buffer;
 
+    //
+    /* SEND DATA */
     err = sendto(socket_descriptor, (const char *)n, strlen(n), 0,
                  (const struct sockaddr *)&client_address, client_size);
 
@@ -163,10 +151,6 @@ int process_requests(int socket_descriptor) { /* ALLOCATE RESOURCES  */
       perror("sendto");
       return 2;
     }
-
-    printf("Sendto: %i\n", err);
-
-    puts(buffer);
   }
 
   return 0;
@@ -194,10 +178,15 @@ char *sanitize(char *s) {
 }
 
 int fibbonnaci(char *n) {
-  int result;
+  int result, i;
   int n_i;
 
   n = sanitize(n);
+
+  for (i = 0; i < strlen(n); i++) {
+    if (!isdigit(n[i]))
+      return -1;
+  }
 
   n_i = atoi(n);
 
